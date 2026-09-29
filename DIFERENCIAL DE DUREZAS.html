@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Durezas – Promedios y comparación Δ</title>
+<style>
+  :root{
+    --linea:#e2e8f0;
+    --linea-suave:#eef2f7;
+    --texto:#1e293b;
+    --suave:#64748b;
+    --acento:#2563eb;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;padding:24px 20px 70px;
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:#f4f6fb;color:var(--texto);font-size:15px;
+  }
+  header{max-width:1400px;margin:0 auto 20px}
+  h1{font-size:1.45rem;margin:0}
+  section{
+    max-width:1400px;margin:0 auto 22px;background:#fff;
+    border:1px solid var(--linea);border-radius:14px;padding:18px 18px 20px;
+    box-shadow:0 1px 2px rgba(15,23,42,.04);
+  }
+  section h2{font-size:1.05rem;margin:0 0 14px}
+  .barra{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .tabla-wrap{max-height:640px;overflow:auto;border:1px solid var(--linea);border-radius:10px}
+  table{width:100%;border-collapse:separate;border-spacing:0;font-size:.84rem}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--linea-suave);text-align:left;vertical-align:top}
+  th{
+    position:sticky;top:0;background:#f8fafc;z-index:1;
+    font-size:.71rem;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--suave);font-weight:700;white-space:nowrap;
+  }
+  tbody tr:hover{background:#f9fbff}
+  .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .small{font-size:.76rem;color:var(--suave)}
+  .strong{font-weight:700}
+  .warn{color:#b45309;cursor:help}
+  .med{min-width:80px;text-align:right}
+  .med input{
+    width:62px;padding:3px 5px;border:1px solid #e2e8f0;border-radius:5px;
+    font:inherit;font-size:.78rem;text-align:right;background:#fff;
+    font-variant-numeric:tabular-nums;
+  }
+  .med input.hb{font-weight:600;color:#0f172a}
+  .med input.hrc{font-size:.72rem;color:#475569;margin-top:2px;width:54px}
+  .med input:focus{outline:2px solid #bfdbfe;border-color:var(--acento)}
+  .med input.vacio{background:#f8fafc;color:#94a3b8}
+  .med input:hover{border-color:#94a3b8}
+  .nombre-wrap{display:flex;gap:6px;align-items:center}
+  .nombre-wrap input{
+    flex:1;min-width:180px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;
+    font:inherit;font-size:.82rem;background:#fff;
+  }
+  .nombre-wrap input:focus{outline:2px solid #bfdbfe;border-color:var(--acento)}
+  button{
+    font:inherit;font-size:.84rem;font-weight:600;padding:7px 13px;border-radius:9px;
+    border:1px solid var(--acento);background:var(--acento);color:#fff;cursor:pointer;
+    transition:filter .15s;
+  }
+  button:hover{filter:brightness(1.07)}
+  button.sec{background:#fff;color:var(--acento)}
+  button.mini{padding:4px 9px;font-size:.78rem;border-radius:7px}
+  button.peligro{border-color:#e2e8f0;background:#fff;color:#b91c1c}
+  button.peligro:hover{border-color:#fca5a5;background:#fef2f2}
+  .btn-del-grupo{
+    flex:0 0 auto;padding:2px 8px;font-size:.9rem;line-height:1;
+    border-radius:6px;border-color:#e2e8f0;background:#fff;color:#b91c1c;
+  }
+  .btn-del-grupo:hover{background:#fef2f2;border-color:#fca5a5}
+  #listaComparaciones{display:flex;flex-direction:column;gap:14px}
+  .card{border:1px solid var(--linea);border-radius:12px;padding:14px;background:#fcfdff}
+  .card-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .badge{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:26px;height:26px;border-radius:50%;background:#e0e7ff;color:#3730a3;
+    font-size:.78rem;font-weight:700;flex:0 0 auto;
+  }
+  select.sel{
+    flex:1 1 240px;min-width:200px;padding:7px 9px;border:1px solid #cbd5e1;
+    border-radius:8px;font:inherit;font-size:.83rem;background:#fff;
+  }
+  select.sel:focus{outline:2px solid #bfdbfe;border-color:var(--acento)}
+  .vs{font-size:.75rem;font-weight:700;color:var(--suave);text-transform:uppercase}
+  .deltas{display:flex;flex-direction:column;gap:8px}
+  .fila-delta{
+    display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+    padding:9px 12px;border-radius:9px;background:#f8fafc;border:1px solid var(--linea-suave);
+    font-size:.84rem;
+  }
+  .escala{
+    font-weight:800;font-size:.72rem;letter-spacing:.05em;color:#334155;
+    background:#e2e8f0;border-radius:6px;padding:3px 8px;min-width:46px;text-align:center;
+  }
+  .val{color:#475569}
+  .val b{color:#0f172a;font-variant-numeric:tabular-nums}
+  .delta{font-weight:800;font-variant-numeric:tabular-nums;padding:3px 10px;border-radius:7px}
+  .delta.pos{background:#e0e7ff;color:#3730a3}
+  .delta.neg{background:#fef3c7;color:#92400e}
+  .delta.igual{background:#f1f5f9;color:#475569}
+  .pct{font-size:.78rem;font-variant-numeric:tabular-nums;color:#475569}
+  .etq{font-size:.76rem;font-weight:700;margin-left:auto}
+  .etq.pos{color:#3730a3}
+  .etq.neg{color:#92400e}
+  .etq.igual{color:#475569}
+  .sin-datos{font-size:.8rem;color:#94a3b8;font-style:italic}
+  .vacio{color:#94a3b8;font-size:.85rem;font-style:italic;padding:6px 2px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Medidas de dureza · Promedios y comparación Δ</h1>
+</header>
+
+<section>
+  <h2>1 · Promedio de dureza por componente</h2>
+  <div class="barra">
+    <button id="btnAgregarComponente">+ Componente</button>
+    <button id="btnAgregarMedida" title="Agrega una medición nueva a cada componente">+ Medida (todas)</button>
+    <span id="resumen" class="small"></span>
+    <button class="sec" id="btnCSV" style="margin-left:auto">Exportar CSV</button>
+  </div>
+  <div class="tabla-wrap">
+    <table id="tablaPromedios">
+      <thead><tr id="headPromedios"></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>2 · Comparador de durezas (Δ)</h2>
+  <div class="barra">
+    <button id="btnAgregar">+ Agregar combinación</button>
+    <button class="sec" id="btnLimpiar">Vaciar comparaciones</button>
+  </div>
+  <div id="listaComparaciones"></div>
+</section>
+
+<script>
+const $ = sel => document.querySelector(sel);
+
+const DATOS = [
+["Eje rotor Medicion #1",234,23.1],
+["Eje rotor Medicion #2",251,25.8],
+["Eje rotor Medicion #3",240,24.1],
+["Eje rotor Medicion #4",251,25.8],
+["Cuña",759,null],
+["Anillo de desgaste estacionario lado succion  del impulsor #1",343,37.1],
+["Anillo de desgaste estacionario lado succion  del impulsor #4",349,37.6],
+["Anillos de restriccion lado libre conico #1",251,25.8],
+["Anillos de restriccion lado libre conico #2",258,26.8],
+["Anillos de restriccion lado libre plano #1",262,27.5],
+["Anillos de restriccion lado libre plano #2",274,29.1],
+["Anillo rotativo del impulor #2 lado succion medicion #1",153,null],
+["Anillo rotativo del impulor #2 lado succion medicion #2",165,null],
+["Anillo rotativo del impulor #2 lado succion medicion #3",151,null],
+["Impulsor #2",351,37.9],
+["Impulsor #2",332,35.9],
+["Anillo de desgaste estacionario lado succion  del impulsor #3",322,34.8],
+["Anillo de desgaste estacionario lado succion  del impulsor #4",308,33.3],
+["Anillo estacionario lado hub del impulsor #1 medicion #1",324,35.1],
+["Anillo estacionario lado hub del impulsor #1 medicion #2",351,37.9],
+["Anillo estacionario lado hub del impulsor #3 medicion #1",465,47.8],
+["Anillo estacionario lado hub del impulsor #3 medicion #2",455,47],
+["bushing Estacionario manga de balance lado libre medida #1",145,null],
+["bushing Estacionario manga de balance lado libre medida #2",150,null],
+["bushing Estacionario manga de balance lado libre medida #3",144,null],
+["bushing Estacionario manga de balance lado libre medida #4",147,null],
+["bushing Estacionario manga de balance lado libre medida #5",154,null],
+["bushing Estacionario manga de balance lado libre medida #6",153,null],
+["bushing Estacionario manga de balance lado libre medida #7",423,44.4],
+["bushing Estacionario manga de balance lado libre medida #8",435,45.5],
+["Manga de balance rotativa lado libre Medición #1",314,33.9],
+["Manga de balance rotativa lado libre Medición #2",393,31.5],
+["Manga de balance rotativa lado libre Medición #3",324,35.1],
+["Manga de balance rotativa lado libre Medición #4",314,33.9],
+["bushing Estacionario manga de balance central Medicion #1",474,48.8],
+["bushing Estacionario manga de balance central Medicion #2",481,49.1],
+["bushing Estacionario manga de balance central Medicion #3",468,48],
+["bushing Estacionario manga de balance central Medicion #4",529,52.6],
+["bushing Estacionario manga de balance central Medicion #5",478,48.8],
+["bushing Estacionario manga de balance central Medicion #6",448,46.5],
+["Manga de balance hidraulico rotativa central Medicion #1",316,34.2],
+["Manga de balance hidraulico rotativa central Medicion #2",314,33.9],
+["Manga de balance hidraulico rotativa central Medicion #3",349,37.6],
+["Manga de balance hidraulico rotativa central Medicion #4",316,34.2],
+["cuñas de impulsores y mangas",null,null],
+["Impulsor #3 Medicion #1",269,28.4],
+["Impulsor #3 Medicion #2",301,32.4],
+["Anillo rotativo impulsor # 3 lado hub",319,34.5],
+["Impulsor #3 Medicion #3",244,24.8],
+["Impulsor #3 Medicion #4",306,33],
+["Anillo rotativo del impulsor #3 Medicion # 1",182,null],
+["Anillo rotativo del impulsor #3 Medicion # 2",154,null],
+["Anillo rotativo del impulsor #3 Medicion # 3",279,29.7],
+["Impulsor #4 Medicion #1",246,25.2],
+["Impulsor #4 Medicion #2",306,33],
+["Impulsor #4 Medicion #3",306,33],
+["Impulsor #4 Medicion #4",274,29.1],
+["Impulsor #4 Medicion #5",281,30],
+["Impulsor #4 Medicion #5",276,29.4],
+["Impulsor #1 Medicion #1",262,27.1],
+["Impulsor #1 Medicion #2",301,32.4],
+["Anillo rotativo del impulsor #1 Medicion # 1 lado succion",274,29.1],
+["Anillo rotativo del impulsor #1 Medicion # 2",240,24.1],
+["Anillo rotativo del impulsor #1 Medicion # 3",285,26.8],
+["Anillo rotativo del impulsor #1 Medicion # 4",276,29.4],
+["Impulsor #1 Medicion #3",303,32.7],
+["Impulsor #1 Medicion #4",330,35.7],
+["Anillo rotativo del impulsor #1 Medicion # 1 lado hub",351,37.9],
+["Anillo de desgaste estacionario lado succion  #1",372,40.4],
+["Anillo de desgaste estacionario lado succion  #2",369,39.6],
+["Anillo de desgaste estacionario lado succion  #3",332,35.9],
+["Anillo de desgaste estacionario lado succion  #4",357,38.5],
+["Carcasa superior Medicion #1",141,null],
+["Carcasa superior Medicion #2",140,null],
+["Carcasa superior Medicion #3",184,null],
+["Carcasa superior Medicion #4",187,null],
+["Carcasa superior Medicion #5",280,30.3],
+["Carcasa superior Medicion #6",215,19.8],
+["Carcasa superior Medicion #7",184,null],
+["Carcasa inferior Medicion #1",153,null],
+["Carcasa inferior Medicion #2",143,null],
+["Carcasa inferior Medicion #3",152,null],
+["Carcasa inferior Medicion #4",151,null],
+["Carcasa inferior Medicion #5",148,null],
+["Carcasa inferior Medicion #6",187,null],
+["Carcasa inferior Medicion #7",159,null],
+["Carcasa inferior Medicion #8",202,null],
+["Carcasa inferior Medicion #9",160,null],
+["Cajeras de cojinetes lado acople inferior Medicion #1",149,null],
+["Cajeras de cojinetes lado acople inferior Medicion #2",153,null],
+["Cajeras de cojinetes lado acople superior Medicion #1",148,null],
+["Cajeras de cojinetes lado acople superior Medicion #2",153,null],
+["cajeras de cojinetes lado libre Inferior Medicion #1",140,null],
+["cajeras de cojinetes lado libre Inferior Medicion #2",148,null],
+["cajeras de cojinetes lado libre Superior Medicion #1",156,null],
+["cajeras de cojinetes lado libre Superior Medicion #2",157,null],
+["candados de impulsores",160,null]
+];
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esNum = v => typeof v === 'number' && isFinite(v);
+const promedio = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+
+function rango(a){
+  if(!a.length) return '—';
+  const min = Math.min(...a), max = Math.max(...a);
+  const f = v => Number.isInteger(v) ? String(v) : v.toFixed(1);
+  return min === max ? f(min) : f(min) + ' – ' + f(max);
+}
+function disperso(a){
+  if(a.length < 2) return false;
+  const p = promedio(a);
+  if(!p) return false;
+  return (Math.max(...a) - Math.min(...a)) > 0.25 * p;
+}
+function normalizar(nombre){
+  return String(nombre)
+    .replace(/\s*medici[oó]n\s*#\s*\d+/gi, '')
+    .replace(/\s*medida\s*#\s*\d+/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+let idCounter = 0;
+const filas = DATOS.map(d => ({
+  id: idCounter++,
+  nombre: d[0],
+  hb: d[1],
+  hrc: d[2],
+  grupo: normalizar(d[0])
+}));
+
+let combinaciones = [];
+
+/* =========================================================
+   Construcción de grupos
+   ========================================================= */
+function construirGrupos(){
+  const map = new Map();
+  for(const f of filas){
+    const nombre = (f.grupo || '').trim() || '(sin grupo)';
+    let g = map.get(nombre);
+    if(!g){ g = { nombre, hb: [], hrc: [], filas: [] }; map.set(nombre, g); }
+    if(esNum(f.hb))  g.hb.push(f.hb);
+    if(esNum(f.hrc)) g.hrc.push(f.hrc);
+    g.filas.push(f);
+  }
+  return map;
+}
+
+/* =========================================================
+   Render tabla de promedios
+   ========================================================= */
+function renderPromedios(){
+  const grupos = construirGrupos();
+  const lista = [...grupos.values()];
+  const maxMed = lista.reduce((m,g) => Math.max(m, g.filas.length), 0);
+
+  const head = $('#headPromedios');
+  let h = '<th>Componente</th>' +
+          '<th class="num">N° med.</th>' +
+          '<th class="num">HB prom.</th>' +
+          '<th class="num">HRC prom.</th>' +
+          '<th class="num">Rango HB</th>' +
+          '<th class="num">Rango HRC</th>';
+  for(let i = 1; i <= maxMed; i++) h += '<th class="num">Medición ' + i + '</th>';
+  head.innerHTML = h;
+
+  const tbody = $('#tablaPromedios tbody');
+  tbody.innerHTML = '';
+  let totalMed = 0;
+
+  for(const g of lista){
+    totalMed += g.filas.length;
+    const phb  = promedio(g.hb);
+    const phrc = promedio(g.hrc);
+    const warnHB  = disperso(g.hb)  ? '<span class="warn" title="Dispersión alta"> ⚠</span>' : '';
+    const warnHRC = disperso(g.hrc) ? '<span class="warn" title="Dispersión alta"> ⚠</span>' : '';
+
+    let tds = '<td><div class="nombre-wrap">' +
+                '<input class="nombre-grupo" data-grupo="' + esc(g.nombre) + '" value="' + esc(g.nombre) + '">' +
+                '<button class="mini btn-del-grupo" data-grupo="' + esc(g.nombre) + '" title="Eliminar componente">×</button>' +
+              '</div></td>' +
+      '<td class="num">' + g.filas.length + '</td>' +
+      '<td class="num strong">' + (phb  === null ? '—' : phb.toFixed(1))  + warnHB  + '</td>' +
+      '<td class="num strong">' + (phrc === null ? '—' : phrc.toFixed(1)) + warnHRC + '</td>' +
+      '<td class="num small">' + rango(g.hb)  + '</td>' +
+      '<td class="num small">' + rango(g.hrc) + '</td>';
+
+    for(let i = 0; i < maxMed; i++){
+      const f = g.filas[i];
+      if(!f){ tds += '<td class="med small">—</td>'; continue; }
+      const hbVal  = esNum(f.hb)  ? f.hb  : '';
+      const hrcVal = esNum(f.hrc) ? f.hrc : '';
+      tds += '<td class="med">' +
+        '<input type="number" step="any" class="hb' + (hbVal === '' ? ' vacio' : '') +
+          '" data-id="' + f.id + '" data-campo="hb"  value="' + hbVal  + '" placeholder="HB">' +
+        '<input type="number" step="any" class="hrc' + (hrcVal === '' ? ' vacio' : '') +
+          '" data-id="' + f.id + '" data-campo="hrc" value="' + hrcVal + '" placeholder="HRC">' +
+      '</td>';
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = tds;
+    tbody.appendChild(tr);
+  }
+
+  $('#resumen').textContent =
+    lista.length + ' componentes · ' + totalMed + ' mediciones';
+}
+
+/* =========================================================
+   Actualización de una fila in-place (para no perder foco)
+   ========================================================= */
+function actualizarFila(f){
+  const inp = document.querySelector('input[data-id="' + f.id + '"][data-campo="hb"]');
+  if(!inp) return;
+  const tr = inp.closest('tr');
+  if(!tr) return;
+
+  const grupoNombre = (f.grupo || '').trim() || '(sin grupo)';
+  const g = construirGrupos().get(grupoNombre);
+  if(!g) return;
+
+  const phb  = promedio(g.hb);
+  const phrc = promedio(g.hrc);
+  const warnHB  = disperso(g.hb)  ? '<span class="warn" title="Dispersión alta"> ⚠</span>' : '';
+  const warnHRC = disperso(g.hrc) ? '<span class="warn" title="Dispersión alta"> ⚠</span>' : '';
+
+  const celdas = tr.querySelectorAll('td');
+  celdas[1].textContent = g.filas.length;
+  celdas[2].innerHTML = (phb  === null ? '—' : phb.toFixed(1))  + warnHB;
+  celdas[3].innerHTML = (phrc === null ? '—' : phrc.toFixed(1)) + warnHRC;
+  celdas[4].textContent = rango(g.hb);
+  celdas[5].textContent = rango(g.hrc);
+
+  actualizarResumen();
+}
+
+function actualizarResumen(){
+  const grupos = construirGrupos();
+  let total = 0;
+  for(const g of grupos.values()) total += g.filas.length;
+  $('#resumen').textContent = grupos.size + ' componentes · ' + total + ' mediciones';
+}
+
+/* =========================================================
+   Comparador Δ
+   ========================================================= */
+function bloqueDelta(escala, va, vb, dec){
+  if(va === null || vb === null){
+    return '<div class="fila-delta">' +
+             '<span class="escala">' + escala + '</span>' +
+             '<span class="sin-datos">Sin datos</span>' +
+           '</div>';
+  }
+  const d   = va - vb;
+  const pct = vb !== 0 ? (d / vb) * 100 : null;
+  const igual = Math.abs(d) < 1e-9;
+  const cls = igual ? 'igual' : (d > 0 ? 'pos' : 'neg');
+  const etq = igual ? 'Iguales' : (d > 0 ? 'A es más duro' : 'B es más duro');
+
+  return '<div class="fila-delta">' +
+    '<span class="escala">' + escala + '</span>' +
+    '<span class="val">A: <b>' + va.toFixed(dec) + '</b></span>' +
+    '<span class="val">B: <b>' + vb.toFixed(dec) + '</b></span>' +
+    '<span class="delta ' + cls + '">Δ ' + (d > 0 ? '+' : '') + d.toFixed(dec) + '</span>' +
+    '<span class="pct">' + (pct === null ? '' : (pct > 0 ? '+' : '') + pct.toFixed(1) + ' %') + '</span>' +
+    '<span class="etq ' + cls + '">' + etq + '</span>' +
+  '</div>';
+}
+
+function renderComparador(){
+  const grupos = construirGrupos();
+  const nombres = [...grupos.keys()];
+  const cont = $('#listaComparaciones');
+  cont.innerHTML = '';
+
+  if(!combinaciones.length){
+    cont.innerHTML = '<p class="vacio">Sin combinaciones.</p>';
+    return;
+  }
+
+  const opciones = sel => {
+    const set = new Set(nombres);
+    if(sel && !set.has(sel)) set.add(sel);
+    return [...set].map(n =>
+      '<option value="' + esc(n) + '"' + (n === sel ? ' selected' : '') + '>' +
+      esc(n) + '</option>').join('');
+  };
+
+  combinaciones.forEach((c, idx) => {
+    const A = grupos.get(c.a);
+    const B = grupos.get(c.b);
+    const hbA  = A ? promedio(A.hb)  : null;
+    const hbB  = B ? promedio(B.hb)  : null;
+    const hrcA = A ? promedio(A.hrc) : null;
+    const hrcB = B ? promedio(B.hrc) : null;
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<div class="card-head">' +
+        '<span class="badge">' + (idx + 1) + '</span>' +
+        '<select class="sel sel-a" data-idx="' + idx + '">' + opciones(c.a) + '</select>' +
+        '<span class="vs">vs</span>' +
+        '<select class="sel sel-b" data-idx="' + idx + '">' + opciones(c.b) + '</select>' +
+        '<button class="mini sec btn-swap" data-idx="' + idx + '" title="Invertir">⇄</button>' +
+        '<button class="mini peligro btn-quitar" data-idx="' + idx + '">Quitar</button>' +
+      '</div>' +
+      '<div class="deltas">' +
+        bloqueDelta('HB',  hbA,  hbB,  1) +
+        bloqueDelta('HRC', hrcA, hrcB, 1) +
+      '</div>';
+    cont.appendChild(card);
+  });
+}
+
+/* =========================================================
+   Eventos: editar mediciones / nombre / eliminar grupo
+   ========================================================= */
+$('#tablaPromedios').addEventListener('input', e => {
+  const inp = e.target;
+  if(!inp.matches('input[data-id]')) return;
+  const f = filas.find(x => x.id === +inp.dataset.id);
+  if(!f) return;
+  const campo = inp.dataset.campo;
+  const raw = inp.value.trim();
+  if(raw === ''){
+    f[campo] = null;
+  } else {
+    const n = Number(raw);
+    f[campo] = isFinite(n) ? n : null;
+  }
+  inp.classList.toggle('vacio', raw === '');
+  actualizarFila(f);
+  renderComparador();
+});
+
+$('#tablaPromedios').addEventListener('change', e => {
+  const t = e.target;
+  if(t.classList.contains('nombre-grupo')){
+    const viejo = t.dataset.grupo;
+    const nuevo = (t.value.trim() || '(sin grupo)');
+    if(viejo === nuevo) return;
+    for(const f of filas){
+      if((f.grupo || '(sin grupo)') === viejo) f.grupo = nuevo;
+    }
+    // Actualizar combinaciones que usaban el nombre viejo
+    for(const c of combinaciones){
+      if(c.a === viejo) c.a = nuevo;
+      if(c.b === viejo) c.b = nuevo;
+    }
+    renderPromedios();
+    renderComparador();
+  }
+});
+
+$('#tablaPromedios').addEventListener('click', e => {
+  const t = e.target;
+  if(t.classList.contains('btn-del-grupo')){
+    const nombre = t.dataset.grupo;
+    if(!confirm('¿Eliminar el componente "' + nombre + '" y todas sus mediciones?')) return;
+    for(let i = filas.length - 1; i >= 0; i--){
+      if((filas[i].grupo || '(sin grupo)') === nombre) filas.splice(i, 1);
+    }
+    combinaciones = combinaciones.filter(c => c.a !== nombre && c.b !== nombre);
+    renderPromedios();
+    renderComparador();
+  }
+});
+
+/* =========================================================
+   Agregar componente / agregar medida
+   ========================================================= */
+$('#btnAgregarComponente').addEventListener('click', () => {
+  const existentes = new Set(construirGrupos().keys());
+  let n = 1;
+  while(existentes.has('Nuevo componente ' + n)) n++;
+  const nombre = 'Nuevo componente ' + n;
+  filas.push({
+    id: idCounter++,
+    nombre,
+    hb: null,
+    hrc: null,
+    grupo: nombre
+  });
+  renderPromedios();
+  renderComparador();
+});
+
+$('#btnAgregarMedida').addEventListener('click', () => {
+  const grupos = construirGrupos();
+  if(!grupos.size){
+    alert('No hay componentes todavía.');
+    return;
+  }
+  for(const g of grupos.values()){
+    filas.push({
+      id: idCounter++,
+      nombre: g.nombre,
+      hb: null,
+      hrc: null,
+      grupo: g.nombre
+    });
+  }
+  renderPromedios();
+  renderComparador();
+});
+
+/* =========================================================
+   Comparador: eventos
+   ========================================================= */
+$('#listaComparaciones').addEventListener('change', e => {
+  const t = e.target;
+  const idx = +t.dataset.idx;
+  if(isNaN(idx)) return;
+  if(t.classList.contains('sel-a')) combinaciones[idx].a = t.value;
+  if(t.classList.contains('sel-b')) combinaciones[idx].b = t.value;
+  renderComparador();
+});
+
+$('#listaComparaciones').addEventListener('click', e => {
+  const t = e.target;
+  const idx = +t.dataset.idx;
+  if(isNaN(idx)) return;
+  if(t.classList.contains('btn-quitar')){
+    combinaciones.splice(idx, 1);
+    renderComparador();
+  }
+  if(t.classList.contains('btn-swap')){
+    const c = combinaciones[idx];
+    [c.a, c.b] = [c.b, c.a];
+    renderComparador();
+  }
+});
+
+$('#btnAgregar').addEventListener('click', () => {
+  const nombres = [...construirGrupos().keys()];
+  if(nombres.length < 2){ alert('Se necesitan al menos 2 componentes.'); return; }
+  let a = nombres[0], b = nombres[1];
+  if(combinaciones.length){
+    const ult = combinaciones[combinaciones.length - 1];
+    a = ult.a; b = ult.b;
+  }
+  combinaciones.push({ a, b });
+  renderComparador();
+});
+
+$('#btnLimpiar').addEventListener('click', () => {
+  combinaciones = [];
+  renderComparador();
+});
+
+/* =========================================================
+   Exportar CSV
+   ========================================================= */
+$('#btnCSV').addEventListener('click', () => {
+  const grupos = construirGrupos();
+  const lista = [...grupos.values()];
+  const maxMed = lista.reduce((m,g) => Math.max(m, g.filas.length), 0);
+
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const head = ['Componente','N mediciones','HB promedio','HRC promedio',
+                'Rango HB','Rango HRC'];
+  for(let i = 1; i <= maxMed; i++) head.push('Medición ' + i + ' HB', 'Medición ' + i + ' HRC');
+
+  const lines = [head.map(q).join(';')];
+
+  for(const g of lista){
+    const phb = promedio(g.hb), phrc = promedio(g.hrc);
+    const row = [
+      g.nombre, g.filas.length,
+      phb  === null ? '' : phb.toFixed(1),
+      phrc === null ? '' : phrc.toFixed(1),
+      rango(g.hb), rango(g.hrc)
+    ];
+    for(let i = 0; i < maxMed; i++){
+      const f = g.filas[i];
+      row.push(f && esNum(f.hb)  ? f.hb  : '');
+      row.push(f && esNum(f.hrc) ? f.hrc : '');
+    }
+    lines.push(row.map(q).join(';'));
+  }
+
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')],
+                        { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'promedios_dureza.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+/* =========================================================
+   Init
+   ========================================================= */
+renderPromedios();
+(function(){
+  const nombres = [...construirGrupos().keys()];
+  if(nombres.length >= 2){
+    combinaciones.push({ a: nombres[0], b: nombres[1] });
+  }
+  renderComparador();
+})();
+</script>
+</body>
+</html>
