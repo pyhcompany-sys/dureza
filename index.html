@@ -109,6 +109,26 @@
   .etq.igual{color:#475569}
   .sin-datos{font-size:.8rem;color:#94a3b8;font-style:italic}
   .vacio{color:#94a3b8;font-size:.85rem;font-style:italic;padding:6px 2px}
+  [hidden]{display:none!important}
+  nav.tabs{max-width:1400px;margin:0 auto 16px;display:flex;gap:6px;border-bottom:2px solid var(--linea)}
+  button.tab{background:transparent;color:var(--suave);border:0;border-bottom:3px solid transparent;border-radius:0;padding:9px 16px;margin-bottom:-2px}
+  button.tab.act{color:var(--acento);border-bottom-color:var(--acento)}
+  .tl{table-layout:fixed;width:auto}
+  #bTabla th{overflow:hidden;text-overflow:ellipsis}
+  .rz{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize}
+  .rz:hover{background:#93c5fd}
+  .bi{width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font:inherit;font-size:.82rem;background:#fff}
+  .bi.nu{text-align:right;font-variant-numeric:tabular-nums}
+  .bi:focus{outline:2px solid #bfdbfe;border-color:var(--acento)}
+  .b2{display:flex;gap:4px}
+  .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+  .meta label{font-size:.74rem;color:var(--suave);font-weight:700;display:flex;flex-direction:column;gap:3px}
+  textarea.bi{min-height:70px;resize:vertical}
+  .inf table{margin:6px 0 16px}
+  .inf th{position:static}
+  .inf td,.inf th{border:1px solid var(--linea)}
+  .inf h3{font-size:.95rem;margin:14px 0 4px}
+  @media print{body *{visibility:hidden}#informe,#informe *{visibility:visible}#informe{position:absolute;left:0;top:0;width:100%}}
 </style>
 </head>
 <body>
@@ -116,6 +136,13 @@
 <header>
   <h1>Medidas de dureza · Promedios y comparación Δ</h1>
 </header>
+
+<nav class="tabs">
+  <button class="tab act" data-tab="tabA">Promedios y comparación Δ</button>
+  <button class="tab" data-tab="tabB">Formato limpio · Dureza y holgura</button>
+</nav>
+
+<div id="tabA">
 
 <section>
   <h2>1 · Promedio de dureza por componente</h2>
@@ -141,6 +168,52 @@
   </div>
   <div id="listaComparaciones"></div>
 </section>
+
+</div>
+
+<div id="tabB" hidden>
+<section>
+  <h2>Datos del informe</h2>
+  <div class="meta" id="bMeta">
+    <label>Proyecto<input class="bi" data-m="proyecto"></label>
+    <label>Equipo / bomba<input class="bi" data-m="equipo"></label>
+    <label>Responsable<input class="bi" data-m="resp"></label>
+    <label>Fecha<input class="bi" type="date" data-m="fecha"></label>
+  </div>
+</section>
+<section>
+  <h2>1 · Componentes: dureza (HB y HRC) y diámetros</h2>
+  <div class="barra">
+    <button id="bAddC">+ Componente</button>
+    <button id="bAddM">+ Medición</button>
+    <button class="sec" id="bDelM">− Medición</button>
+    <label class="small">Unidad de Ø <select id="bUnit" class="sel"><option value="mm">mm</option><option value="in">pulgadas</option></select></label>
+    <button class="sec" id="bMas" title="Ensanchar todas las columnas">Ancho +</button>
+    <button class="sec" id="bMenos" title="Estrechar todas las columnas">Ancho −</button>
+    <button class="sec" id="bRst">Restablecer anchos</button>
+    <button class="sec peligro" id="bClr" style="margin-left:auto">Limpiar todo</button>
+  </div>
+  <div class="tabla-wrap"><table id="bTabla" class="tl"></table></div>
+  <p class="small">Arrastra el borde derecho de un encabezado para cambiar el ancho (doble clic lo restablece). Al cambiar la unidad, los diámetros se convierten. Los datos se guardan en este navegador.</p>
+</section>
+<section>
+  <h2>2 · Comparación de durezas y holguras</h2>
+  <p class="small" style="margin-top:-6px">Elige componente y diámetro de cada lado. Holgura diametral = Ø A − Ø B (negativa = interferencia).</p>
+  <div class="barra"><button id="bAddP">+ Comparación</button></div>
+  <div id="bPares"></div>
+</section>
+<section>
+  <h2>3 · Informe</h2>
+  <label class="small">Observaciones</label>
+  <textarea id="bObs" class="bi" placeholder="Observaciones que se incluirán en el informe"></textarea>
+  <div class="barra" style="margin-top:12px">
+    <button id="bGen">Generar informe</button>
+    <button class="sec" id="bPrint">Imprimir / PDF</button>
+    <button class="sec" id="bCsv">Exportar CSV</button>
+  </div>
+  <div id="informe"></div>
+</section>
+</div>
 
 <script>
 const $ = sel => document.querySelector(sel);
@@ -652,6 +725,259 @@ renderPromedios();
     combinaciones.push({ a: nombres[0], b: nombres[1] });
   }
   renderComparador();
+})();
+</script>
+<script>
+(function(){
+const q = s => document.querySelector(s), E = esc, KEY = 'dureza_formato_limpio_v1';
+const num = v => typeof v === 'number' && isFinite(v);
+const prom = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+const nuevaComp = n => ({nombre:'', di:null, de:null, m:Array.from({length:n},()=>({hb:null,hrc:null}))});
+const defaults = () => ({unit:'mm', nMed:4, comps:[0,1,2,3].map(()=>nuevaComp(4)),
+  pares:[{a:0,b:1,da:'di',db:'de'}], colW:{},
+  meta:{proyecto:'',equipo:'',resp:'',fecha:new Date().toISOString().slice(0,10)}, obs:''});
+let st; try{ st = JSON.parse(localStorage.getItem(KEY)); }catch(e){}
+if(!st || !st.comps) st = defaults();
+const guardar = () => { try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(e){} };
+const nom = i => (st.comps[i] && st.comps[i].nombre.trim()) || ('Componente ' + (i+1));
+const vals = (c,k) => c.m.map(x=>x[k]).filter(num);
+const dec = () => st.unit === 'mm' ? 3 : 4;
+const lab = k => k === 'di' ? 'Ø int' : 'Ø ext';
+const FIJAS = 6;
+const defW = i => i < FIJAS ? [230,95,95,55,85,85][i] : (i < FIJAS + st.nMed ? 135 : 44);
+const W = i => st.colW[i] || defW(i);
+const sumW = () => { let s=0; for(let i=0;i<FIJAS+st.nMed+1;i++) s+=W(i); return s; };
+
+/* ---------- Tabla ---------- */
+function renderTabla(){
+  const n = st.nMed, tot = FIJAS + n + 1;
+  const hd = ['Componente','Ø interno ('+st.unit+')','Ø externo ('+st.unit+')','N°','HB prom.','HRC prom.'];
+  for(let j=1;j<=n;j++) hd.push('Med. '+j+' · HB | HRC');
+  hd.push('');
+  let cg='', th='';
+  for(let i=0;i<tot;i++){
+    cg += '<col style="width:'+W(i)+'px">';
+    th += '<th>'+hd[i]+(i<tot-1?'<span class="rz" data-i="'+i+'" title="Arrastrar: cambiar ancho · doble clic: restablecer"></span>':'')+'</th>';
+  }
+  const val = v => num(v) ? v : '';
+  const body = st.comps.map((c,i)=>
+    '<tr data-i="'+i+'"><td><input class="bi" data-k="nombre" value="'+E(c.nombre)+'" placeholder="Nombre del componente"></td>' +
+    '<td><input class="bi nu" type="number" step="any" min="0" data-k="di" value="'+val(c.di)+'"></td>' +
+    '<td><input class="bi nu" type="number" step="any" min="0" data-k="de" value="'+val(c.de)+'"></td>' +
+    '<td class="num bn"></td><td class="num strong bhb"></td><td class="num strong bhrc"></td>' +
+    c.m.map((x,j)=>'<td><div class="b2">' +
+      '<input class="bi nu" type="number" step="any" data-j="'+j+'" data-k="hb" placeholder="HB" value="'+val(x.hb)+'">' +
+      '<input class="bi nu" type="number" step="any" data-j="'+j+'" data-k="hrc" placeholder="HRC" value="'+val(x.hrc)+'"></div></td>').join('') +
+    '<td><button class="mini peligro" data-act="delc" title="Eliminar componente">×</button></td></tr>').join('');
+  const t = q('#bTabla');
+  t.innerHTML = '<colgroup>'+cg+'</colgroup><thead><tr>'+th+'</tr></thead><tbody>'+body+'</tbody>';
+  t.style.width = sumW()+'px';
+  t.querySelectorAll('tbody tr').forEach(tr => resumenFila(tr, +tr.dataset.i));
+}
+function resumenFila(tr, i){
+  const c = st.comps[i], hb = vals(c,'hb'), hr = vals(c,'hrc');
+  const w = a => disperso(a) ? '<span class="warn" title="Dispersión alta (rango > 25 % del promedio)"> ⚠</span>' : '';
+  const p = a => a.length ? prom(a).toFixed(1) : '—';
+  tr.querySelector('.bn').textContent = c.m.filter(x=>num(x.hb)||num(x.hrc)).length;
+  tr.querySelector('.bhb').innerHTML = p(hb)+w(hb);
+  tr.querySelector('.bhrc').innerHTML = p(hr)+w(hr);
+}
+
+/* ---------- Comparaciones ---------- */
+function calc(p){
+  const A = st.comps[p.a], B = st.comps[p.b];
+  if(!A || !B) return null;
+  const r = {hbA:prom(vals(A,'hb')), hbB:prom(vals(B,'hb')), hrcA:prom(vals(A,'hrc')), hrcB:prom(vals(B,'hrc')),
+             dA:num(A[p.da])?A[p.da]:null, dB:num(B[p.db])?B[p.db]:null};
+  r.hol = (r.dA!==null && r.dB!==null) ? r.dA - r.dB : null;
+  return r;
+}
+function holRow(p, r){
+  const u = st.unit, d = dec(), ot = u==='mm'?'in':'mm', f = u==='mm'?1/25.4:25.4, od = u==='mm'?4:3;
+  if(r.hol === null){
+    const f1 = r.dA===null ? lab(p.da)+' de A' : '', f2 = r.dB===null ? lab(p.db)+' de B' : '';
+    return '<div class="fila-delta"><span class="escala">Holgura</span><span class="sin-datos">Falta: '+[f1,f2].filter(Boolean).join(' y ')+'</span></div>';
+  }
+  const cls = r.hol>1e-9?'pos':(r.hol<-1e-9?'neg':'igual');
+  const tipo = r.hol>1e-9?'Holgura':(r.hol<-1e-9?'Interferencia':'Ajuste nulo');
+  return '<div class="fila-delta"><span class="escala">Holgura</span>' +
+    '<span class="val">'+lab(p.da)+' A: <b>'+r.dA.toFixed(d)+'</b></span>' +
+    '<span class="val">'+lab(p.db)+' B: <b>'+r.dB.toFixed(d)+'</b></span>' +
+    '<span class="delta '+cls+'">Diametral '+(r.hol>0?'+':'')+r.hol.toFixed(d)+' '+u+'</span>' +
+    '<span class="pct">Radial '+(r.hol/2).toFixed(d)+' '+u+' · '+(r.hol*f).toFixed(od)+' '+ot+' (diam.)</span>' +
+    '<span class="etq '+cls+'">'+tipo+'</span></div>';
+}
+function refrescarRes(){
+  st.pares.forEach((p,i)=>{
+    const el = q('#bRes'+i); if(!el) return;
+    const r = calc(p);
+    el.innerHTML = r ? bloqueDelta('HB',r.hbA,r.hbB,1)+bloqueDelta('HRC',r.hrcA,r.hrcB,1)+holRow(p,r) : '';
+  });
+}
+function renderPares(){
+  const c = q('#bPares');
+  if(!st.pares.length){ c.innerHTML = '<p class="vacio">Sin comparaciones.</p>'; return; }
+  const opc = s => st.comps.map((_,i)=>'<option value="'+i+'"'+(i===+s?' selected':'')+'>'+E(nom(i))+'</option>').join('');
+  const dm = s => '<option value="di"'+(s==='di'?' selected':'')+'>Ø interno</option><option value="de"'+(s==='de'?' selected':'')+'>Ø externo</option>';
+  const sel = (i,f,html) => '<select class="sel" data-i="'+i+'" data-f="'+f+'">'+html+'</select>';
+  c.innerHTML = st.pares.map((p,i)=>
+    '<div class="card"><div class="card-head"><span class="badge">'+(i+1)+'</span>' +
+    sel(i,'a',opc(p.a))+sel(i,'da',dm(p.da))+'<span class="vs">vs</span>'+sel(i,'b',opc(p.b))+sel(i,'db',dm(p.db)) +
+    '<button class="mini sec" data-act="swap" data-i="'+i+'" title="Invertir A y B">⇄</button>' +
+    '<button class="mini peligro" data-act="quitar" data-i="'+i+'">Quitar</button></div>' +
+    '<div class="deltas" id="bRes'+i+'"></div></div>').join('');
+  refrescarRes();
+}
+
+/* ---------- Eventos tabla ---------- */
+const T = q('#bTabla');
+T.addEventListener('input', e => {
+  const t = e.target; if(!t.matches('input[data-k]')) return;
+  const tr = t.closest('tr'), i = +tr.dataset.i, c = st.comps[i], k = t.dataset.k;
+  if(k === 'nombre') c.nombre = t.value;
+  else {
+    const n = t.value.trim()==='' ? null : Number(t.value), v = isFinite(n) ? n : null;
+    if(t.dataset.j !== undefined) c.m[+t.dataset.j][k] = v; else c[k] = v;
+  }
+  resumenFila(tr, i); refrescarRes(); guardar();
+});
+T.addEventListener('change', e => { if(e.target.dataset.k === 'nombre') renderPares(); });
+T.addEventListener('click', e => {
+  const b = e.target.closest('[data-act="delc"]'); if(!b) return;
+  const i = +b.closest('tr').dataset.i;
+  if(!confirm('¿Eliminar "'+nom(i)+'" y sus mediciones?')) return;
+  st.comps.splice(i,1);
+  st.pares = st.pares.filter(p=>p.a!==i && p.b!==i);
+  st.pares.forEach(p=>{ if(p.a>i) p.a--; if(p.b>i) p.b--; });
+  guardar(); renderTabla(); renderPares();
+});
+T.addEventListener('pointerdown', e => {
+  const z = e.target.closest('.rz'); if(!z) return;
+  e.preventDefault();
+  const i = +z.dataset.i, x0 = e.clientX, w0 = W(i), cols = T.querySelectorAll('col');
+  const mv = ev => { st.colW[i] = Math.max(50, Math.round(w0 + ev.clientX - x0)); cols[i].style.width = st.colW[i]+'px'; T.style.width = sumW()+'px'; };
+  const up = () => { removeEventListener('pointermove',mv); removeEventListener('pointerup',up); guardar(); };
+  addEventListener('pointermove', mv); addEventListener('pointerup', up);
+});
+T.addEventListener('dblclick', e => {
+  const z = e.target.closest('.rz'); if(!z) return;
+  delete st.colW[+z.dataset.i]; guardar(); renderTabla();
+});
+
+/* ---------- Botones ---------- */
+q('#bAddC').onclick = () => { st.comps.push(nuevaComp(st.nMed)); guardar(); renderTabla(); renderPares(); };
+q('#bAddM').onclick = () => { st.nMed++; st.comps.forEach(c=>c.m.push({hb:null,hrc:null})); st.colW = {}; guardar(); renderTabla(); };
+q('#bDelM').onclick = () => {
+  if(st.nMed <= 1) return;
+  const hay = st.comps.some(c => { const x = c.m[st.nMed-1]; return num(x.hb) || num(x.hrc); });
+  if(hay && !confirm('La última medición tiene datos. ¿Eliminarla?')) return;
+  st.nMed--; st.comps.forEach(c=>c.m.pop()); st.colW = {}; guardar(); renderTabla(); renderPares();
+};
+const escalar = f => { for(let i=0;i<FIJAS+st.nMed;i++) st.colW[i] = Math.max(50, Math.round(W(i)*f)); guardar(); renderTabla(); };
+q('#bMas').onclick = () => escalar(1.15);
+q('#bMenos').onclick = () => escalar(0.87);
+q('#bRst').onclick = () => { st.colW = {}; guardar(); renderTabla(); };
+q('#bClr').onclick = () => { if(!confirm('¿Borrar todos los datos de esta pestaña?')) return; st = defaults(); guardar(); init(); };
+q('#bUnit').onchange = e => {
+  const nu = e.target.value; if(nu === st.unit) return;
+  const f = nu === 'in' ? 1/25.4 : 25.4, r = v => num(v) ? Math.round(v*f*1e5)/1e5 : null;
+  st.comps.forEach(c => { c.di = r(c.di); c.de = r(c.de); });
+  st.unit = nu; guardar(); renderTabla(); renderPares();
+};
+q('#bAddP').onclick = () => {
+  if(st.comps.length < 2){ alert('Se necesitan al menos 2 componentes.'); return; }
+  const u = st.pares[st.pares.length-1];
+  st.pares.push(u ? {...u} : {a:0,b:1,da:'di',db:'de'}); guardar(); renderPares();
+};
+q('#bPares').addEventListener('change', e => {
+  const t = e.target, i = +t.dataset.i; if(isNaN(i)) return;
+  const f = t.dataset.f; st.pares[i][f] = (f==='a'||f==='b') ? +t.value : t.value;
+  guardar(); refrescarRes();
+});
+q('#bPares').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  const i = +b.dataset.i, p = st.pares[i];
+  if(b.dataset.act === 'quitar') st.pares.splice(i,1);
+  else { [p.a,p.b] = [p.b,p.a]; [p.da,p.db] = [p.db,p.da]; }
+  guardar(); renderPares();
+});
+q('#bMeta').addEventListener('input', e => { if(e.target.dataset.m){ st.meta[e.target.dataset.m] = e.target.value; guardar(); } });
+q('#bObs').addEventListener('input', e => { st.obs = e.target.value; guardar(); });
+
+/* ---------- Informe ---------- */
+function gen(){
+  const u = st.unit, d = dec(), m = st.meta;
+  const fd = v => num(v) ? v.toFixed(d) : '—', f1 = v => v===null ? '—' : v.toFixed(1);
+  const sg = (v,n) => v===null ? '—' : (v>0?'+':'')+v.toFixed(n);
+  const tabla = (cab, filas) => '<div class="tabla-wrap" style="max-height:none"><table><thead><tr>'+cab.map(c=>'<th>'+c+'</th>').join('')+'</tr></thead><tbody>'+filas.join('')+'</tbody></table></div>';
+  const tr = a => '<tr>'+a.map(x=>'<td>'+x+'</td>').join('')+'</tr>';
+  let h = '<div class="inf"><h2 style="font-size:1.25rem;margin-top:18px">Informe de dureza y holguras</h2><p class="small">' +
+    [m.proyecto&&'Proyecto: '+m.proyecto, m.equipo&&'Equipo: '+m.equipo, m.resp&&'Responsable: '+m.resp, m.fecha&&'Fecha: '+m.fecha].filter(Boolean).map(E).join(' · ')+'</p>';
+  h += '<h3>1. Datos por componente</h3>' + tabla(['Componente','Ø int ('+u+')','Ø ext ('+u+')','N°','HB prom.','HRC prom.','Rango HB','Rango HRC'],
+    st.comps.map((c,i)=>{ const hb=vals(c,'hb'), hr=vals(c,'hrc');
+      return tr([E(nom(i)),fd(c.di),fd(c.de),c.m.filter(x=>num(x.hb)||num(x.hrc)).length,f1(prom(hb))+(disperso(hb)?' ⚠':''),f1(prom(hr))+(disperso(hr)?' ⚠':''),rango(hb),rango(hr)]); }));
+  const concl = [], rs = st.pares.map(p=>({p, r:calc(p)})).filter(x=>x.r);
+  if(rs.length){
+    h += '<h3>2. Comparación de durezas (A vs B)</h3>' + tabla(['#','A','B','HB A','HB B','Δ HB','Δ %','HRC A','HRC B','Δ HRC','Resultado'],
+      rs.map(({p,r},k)=>{
+        const dh = (r.hbA!==null&&r.hbB!==null) ? r.hbA-r.hbB : null, dr = (r.hrcA!==null&&r.hrcB!==null) ? r.hrcA-r.hrcB : null;
+        const ref = dh!==null ? dh : dr;
+        return tr([k+1,E(nom(p.a)),E(nom(p.b)),f1(r.hbA),f1(r.hbB),sg(dh,1),(dh!==null&&r.hbB)?sg(dh/r.hbB*100,1)+' %':'—',f1(r.hrcA),f1(r.hrcB),sg(dr,1),
+          ref===null?'Sin datos':(Math.abs(ref)<1e-9?'Iguales':(ref>0?'A más duro':'B más duro'))]); }));
+    h += '<h3>3. Holguras entre diámetros</h3>' + tabla(['#','A','B','Ø A ('+u+')','Ø B ('+u+')','Holgura diametral','Holgura radial','Tipo'],
+      rs.map(({p,r},k)=>tr([k+1,E(nom(p.a)+' ('+lab(p.da)+')'),E(nom(p.b)+' ('+lab(p.db)+')'),fd(r.dA),fd(r.dB),
+        r.hol===null?'—':sg(r.hol,d)+' '+u, r.hol===null?'—':sg(r.hol/2,d)+' '+u,
+        r.hol===null?'Sin datos':(r.hol>1e-9?'Holgura':(r.hol<-1e-9?'Interferencia':'Ajuste nulo'))])));
+    rs.forEach(({p,r}) => {
+      const a = nom(p.a), b = nom(p.b);
+      if(r.hbA!==null && r.hbB!==null){
+        const dd = r.hbA-r.hbB, mn = Math.min(r.hbA,r.hbB);
+        concl.push(Math.abs(dd)<1e-9 ? a+' y '+b+' tienen la misma dureza promedio ('+r.hbA.toFixed(1)+' HB).'
+          : (dd>0?a:b)+' es más duro que '+(dd>0?b:a)+' por '+Math.abs(dd).toFixed(1)+' HB ('+(mn? (Math.abs(dd)/mn*100).toFixed(1)+' %':'—')+').');
+      }
+      if(r.hol!==null) concl.push('Entre '+a+' ('+lab(p.da)+') y '+b+' ('+lab(p.db)+'): '+(r.hol>=0?'holgura':'interferencia')+' diametral de '+Math.abs(r.hol).toFixed(d)+' '+u+' (radial '+Math.abs(r.hol/2).toFixed(d)+' '+u+').');
+    });
+  }
+  const disp = st.comps.map((c,i)=>(disperso(vals(c,'hb'))||disperso(vals(c,'hrc')))?nom(i):null).filter(Boolean);
+  if(disp.length) concl.push('Dispersión alta en las mediciones (rango > 25 % del promedio): '+disp.join(', ')+'.');
+  if(concl.length) h += '<h3>4. Conclusiones</h3><ul>'+concl.map(c=>'<li>'+E(c)+'</li>').join('')+'</ul>';
+  if(st.obs.trim()) h += '<h3>Observaciones</h3><p style="white-space:pre-wrap">'+E(st.obs)+'</p>';
+  q('#informe').innerHTML = h + '</div>';
+  q('#informe').scrollIntoView({behavior:'smooth'});
+}
+q('#bGen').onclick = gen;
+q('#bPrint').onclick = () => { gen(); setTimeout(()=>print(), 150); };
+q('#bCsv').onclick = () => {
+  const Q = v => '"'+String(v??'').replace(/"/g,'""')+'"', u = st.unit, L = [];
+  L.push(['Componente','Ø int ('+u+')','Ø ext ('+u+')','N','HB prom','HRC prom',...Array.from({length:st.nMed},(_,j)=>['Med '+(j+1)+' HB','Med '+(j+1)+' HRC']).flat()].map(Q).join(';'));
+  st.comps.forEach((c,i)=>{ const hb=prom(vals(c,'hb')), hr=prom(vals(c,'hrc'));
+    L.push([nom(i),c.di??'',c.de??'',c.m.filter(x=>num(x.hb)||num(x.hrc)).length,hb===null?'':hb.toFixed(1),hr===null?'':hr.toFixed(1),...c.m.map(x=>[x.hb??'',x.hrc??'']).flat()].map(Q).join(';')); });
+  L.push('');
+  L.push(['A','Dim A','B','Dim B','HB A','HB B','Δ HB','HRC A','HRC B','Δ HRC','Holgura diametral ('+u+')','Holgura radial ('+u+')'].map(Q).join(';'));
+  st.pares.forEach(p=>{ const r = calc(p); if(!r) return;
+    const D = (a,b) => (a!==null&&b!==null) ? (a-b).toFixed(1) : '';
+    L.push([nom(p.a),lab(p.da),nom(p.b),lab(p.db),r.hbA===null?'':r.hbA.toFixed(1),r.hbB===null?'':r.hbB.toFixed(1),D(r.hbA,r.hbB),
+      r.hrcA===null?'':r.hrcA.toFixed(1),r.hrcB===null?'':r.hrcB.toFixed(1),D(r.hrcA,r.hrcB),
+      r.hol===null?'':r.hol.toFixed(dec()),r.hol===null?'':(r.hol/2).toFixed(dec())].map(Q).join(';')); });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF'+L.join('\r\n')],{type:'text/csv;charset=utf-8;'}));
+  a.download = 'dureza_holguras.csv'; a.click(); URL.revokeObjectURL(a.href);
+};
+
+/* ---------- Pestañas e init ---------- */
+document.querySelectorAll('button.tab').forEach(b => b.onclick = () => {
+  document.querySelectorAll('button.tab').forEach(x => x.classList.toggle('act', x === b));
+  q('#tabA').hidden = b.dataset.tab !== 'tabA';
+  q('#tabB').hidden = b.dataset.tab !== 'tabB';
+});
+function init(){
+  q('#bUnit').value = st.unit;
+  document.querySelectorAll('#bMeta [data-m]').forEach(i => i.value = st.meta[i.dataset.m] || '');
+  q('#bObs').value = st.obs || '';
+  q('#informe').innerHTML = '';
+  renderTabla(); renderPares();
+}
+init();
 })();
 </script>
 </body>
